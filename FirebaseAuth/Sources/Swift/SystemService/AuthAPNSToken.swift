@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if !os(macOS)
+#if !os(watchOS)
   import Foundation
 
   // TODO(ncooke3): I believe this could be made a struct now.

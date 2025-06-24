@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if !os(macOS) && !os(watchOS)
+#if !os(watchOS)
   import Foundation
-  import UIKit
+  #if !os(macOS)
+    import UIKit
+  #endif
 
   /// A class represents a credential that proves the identity of the app.
   @available(iOS 13, tvOS 13, macOS 10.15, macCatalyst 13, watchOS 7, *)
@@ -36,7 +38,9 @@
     private let kProbingTimeout = 1.0
 
     /// The application.
-    private let application: UIApplication
+    #if !os(macOS)
+      private let application: UIApplication
+    #endif
 
     /// The object to handle app credentials delivered via notification.
     private let appCredentialManager: AuthAppCredentialManager
@@ -64,13 +68,21 @@
     /// - Parameter appCredentialManager: The object to handle app credentials delivered via
     /// notification.
     /// - Returns: The initialized instance.
-    init(withApplication application: UIApplication,
-         appCredentialManager: AuthAppCredentialManager) {
-      self.application = application
-      self.appCredentialManager = appCredentialManager
-      timeout = kProbingTimeout
-      condition = AuthCondition()
-    }
+    #if !os(macOS)
+      init(withApplication application: UIApplication,
+           appCredentialManager: AuthAppCredentialManager) {
+        self.application = application
+        self.appCredentialManager = appCredentialManager
+        timeout = kProbingTimeout
+        condition = AuthCondition()
+      }
+    #else
+      init(appCredentialManager: AuthAppCredentialManager) {
+        self.appCredentialManager = appCredentialManager
+        timeout = kProbingTimeout
+        condition = AuthCondition()
+      }
+    #endif
 
     private actor PendingCount {
       private var count = 0
@@ -92,22 +104,27 @@
       }
       if await pendingCount.increment() == 1 {
         DispatchQueue.main.async {
-          let proberNotification = [self.kNotificationDataKey: [self.kNotificationProberKey:
-              "This fake notification should be forwarded to Firebase Auth."]]
-          if let delegate = self.application.delegate,
-             delegate
-             .responds(to: #selector(UIApplicationDelegate
-                 .application(_:didReceiveRemoteNotification:fetchCompletionHandler:))) {
-            delegate.application?(self.application,
-                                  didReceiveRemoteNotification: proberNotification) { _ in
+          #if !os(macOS)
+            let proberNotification = [self.kNotificationDataKey: [self.kNotificationProberKey:
+                "This fake notification should be forwarded to Firebase Auth."]]
+            if let delegate = self.application.delegate,
+               delegate
+               .responds(to: #selector(UIApplicationDelegate
+                   .application(_:didReceiveRemoteNotification:fetchCompletionHandler:))) {
+              delegate.application?(self.application,
+                                    didReceiveRemoteNotification: proberNotification) { _ in
+              }
+            } else {
+              AuthLog.logWarning(
+                code: "I-AUT000015",
+                message: "The UIApplicationDelegate must handle " +
+                  "remote notification for phone number authentication to work."
+              )
             }
-          } else {
-            AuthLog.logWarning(
-              code: "I-AUT000015",
-              message: "The UIApplicationDelegate must handle " +
-                "remote notification for phone number authentication to work."
-            )
-          }
+          #else
+            // On macOS, we skip notification forwarding checks since APNs is not available
+            self.isNotificationBeingForwarded = false
+          #endif
           kAuthGlobalWorkQueue.asyncAfter(deadline: .now() + .seconds(Int(self.timeout))) {
             self.condition.signal()
           }

@@ -14,7 +14,7 @@
 
 import Foundation
 
-#if os(iOS)
+#if os(iOS) || os(macOS)
 
   /// Opaque object that identifies the current session to enroll a second factor or to
   /// complete sign in when previously enrolled.

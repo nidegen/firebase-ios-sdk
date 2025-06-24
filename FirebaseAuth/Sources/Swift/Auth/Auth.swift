@@ -1745,6 +1745,14 @@ extension Auth: AuthInterop {
 
         GULAppDelegateSwizzler.registerAppDelegateInterceptor(self)
         GULSceneDelegateSwizzler.registerSceneDelegateInterceptor(self)
+      #elseif os(macOS)
+        // Initialize for phone number auth on macOS (without UIApplication dependencies)
+        let dummyApp = AuthAPNSTokenManager.DummyApplication()
+        self.tokenManager = AuthAPNSTokenManager(withApplication: dummyApp)
+        self.appCredentialManager = AuthAppCredentialManager(withKeychain: self.keychainServices)
+        self.notificationManager = AuthNotificationManager(
+          appCredentialManager: self.appCredentialManager
+        )
       #endif
     }
   }
@@ -2355,7 +2363,7 @@ extension Auth: AuthInterop {
 
   let backend: AuthBackend
 
-  #if os(iOS)
+  #if os(iOS) || os(macOS)
 
     /// The manager for APNs tokens used by phone number auth.
     var tokenManager: AuthAPNSTokenManager!
@@ -2366,8 +2374,10 @@ extension Auth: AuthInterop {
     /// The manager for remote notifications used by phone number auth.
     var notificationManager: AuthNotificationManager!
 
+    #if os(iOS)
     /// An object that takes care of presenting URLs via the auth instance.
     var authURLPresenter: AuthWebViewControllerDelegate
+    #endif
 
   #endif // TARGET_OS_IOS
 

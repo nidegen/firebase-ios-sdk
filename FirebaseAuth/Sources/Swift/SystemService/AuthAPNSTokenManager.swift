@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if !os(macOS) && !os(watchOS)
+#if !os(watchOS)
   import Foundation
-  import UIKit
+  #if !os(macOS)
+    import UIKit
+  #endif
 
   #if COCOAPODS
     internal import GoogleUtilities
@@ -27,11 +29,23 @@
     @MainActor func registerForRemoteNotifications()
   }
 
-  extension UIApplication: AuthAPNSTokenApplication {}
+  #if !os(macOS)
+    extension UIApplication: AuthAPNSTokenApplication {}
+  #endif
 
   /// A class to manage APNs token in memory.
   @available(iOS 13, tvOS 13, macOS 10.15, macCatalyst 13, watchOS 7, *)
   class AuthAPNSTokenManager: @unchecked Sendable /* TODO: sendable */ {
+    
+    // Dummy implementation for macOS
+    #if os(macOS)
+      public class DummyApplication: AuthAPNSTokenApplication {
+        public init() {}
+        @MainActor public func registerForRemoteNotifications() {
+          // No-op on macOS
+        }
+      }
+    #endif
     /// The timeout for registering for remote notification.
     ///
     /// Only tests should access this property.

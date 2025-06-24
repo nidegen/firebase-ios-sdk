@@ -19,7 +19,7 @@ import Foundation
 
 /// A concrete implementation of `AuthProvider` for phone auth providers.
 ///
-/// This class is available on iOS only.
+/// This class is available on iOS and macOS.
 @available(iOS 13, tvOS 13, macOS 10.15, macCatalyst 13, watchOS 7, *)
 @objc(FIRPhoneAuthProvider) open class PhoneAuthProvider: NSObject, @unchecked Sendable {
   /// A string constant identifying the phone identity provider.
@@ -28,7 +28,7 @@ import Foundation
   private static let clientType = "CLIENT_TYPE_IOS"
   private static let fakeCaptchaResponse = "NO_RECAPTCHA"
 
-  #if os(iOS)
+  #if os(iOS) || os(macOS)
     /// Returns an instance of `PhoneAuthProvider` for the default `Auth` object.
     @objc(provider) open class func provider() -> PhoneAuthProvider {
       return PhoneAuthProvider(auth: Auth.auth())
@@ -523,36 +523,41 @@ import Foundation
     /// Continues the flow to verify the client via silent push notification.
     private func reCAPTCHAFlowWithUIDelegate(withUIDelegate uiDelegate: AuthUIDelegate?) async throws
       -> String {
-      let eventID = AuthWebUtils.randomString(withLength: 10)
-      guard let url = try await reCAPTCHAURL(withEventID: eventID) else {
-        fatalError(
-          "Internal error: reCAPTCHAURL returned neither a value nor an error. Report issue"
-        )
-      }
-      let callbackMatcher: (URL?) -> Bool = { callbackURL in
-        AuthWebUtils.isExpectedCallbackURL(
-          callbackURL,
-          eventID: eventID,
-          authType: self.kAuthTypeVerifyApp,
-          callbackScheme: self.callbackScheme
-        )
-      }
+      #if os(iOS)
+        let eventID = AuthWebUtils.randomString(withLength: 10)
+        guard let url = try await reCAPTCHAURL(withEventID: eventID) else {
+          fatalError(
+            "Internal error: reCAPTCHAURL returned neither a value nor an error. Report issue"
+          )
+        }
+        let callbackMatcher: (URL?) -> Bool = { callbackURL in
+          AuthWebUtils.isExpectedCallbackURL(
+            callbackURL,
+            eventID: eventID,
+            authType: self.kAuthTypeVerifyApp,
+            callbackScheme: self.callbackScheme
+          )
+        }
 
-      return try await withUnsafeThrowingContinuation { continuation in
-        self.auth.authURLPresenter.present(url,
-                                           uiDelegate: uiDelegate,
-                                           callbackMatcher: callbackMatcher) { callbackURL, error in
-          if let error {
-            continuation.resume(throwing: error)
-          } else {
-            do {
-              try continuation.resume(returning: self.reCAPTCHAToken(forURL: callbackURL))
-            } catch {
+        return try await withUnsafeThrowingContinuation { continuation in
+          self.auth.authURLPresenter.present(url,
+                                             uiDelegate: uiDelegate,
+                                             callbackMatcher: callbackMatcher) { callbackURL, error in
+            if let error {
               continuation.resume(throwing: error)
+            } else {
+              do {
+                try continuation.resume(returning: self.reCAPTCHAToken(forURL: callbackURL))
+              } catch {
+                continuation.resume(throwing: error)
+              }
             }
           }
         }
-      }
+      #elseif os(macOS)
+        // macOS fallback: Use reCAPTCHA without web UI
+        return PhoneAuthProvider.fakeCaptchaResponse
+      #endif
     }
 
     /// Parses the reCAPTCHA URL and returns the reCAPTCHA token.

@@ -16,7 +16,7 @@ import Foundation
 
 // TODO(Swift 6 Breaking): Make checked Sendable.
 
-#if os(iOS)
+#if os(iOS) || os(macOS)
 
   /// Extends the MultiFactorInfo class for phone number second factors.
   ///

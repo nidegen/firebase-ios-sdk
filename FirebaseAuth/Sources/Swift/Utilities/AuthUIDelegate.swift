@@ -53,4 +53,46 @@
       return dismiss(animated: flag, completion: nil)
     }
   }
+
+#elseif os(macOS)
+
+  import Foundation
+  import AppKit
+
+  /// A protocol to handle user interface interactions for Firebase Auth on macOS.
+  ///
+  /// This protocol is available on macOS only.
+  @objc(FIRAuthUIDelegate) public protocol AuthUIDelegate: NSObjectProtocol {
+    /// If implemented, this method will be invoked when Firebase Auth needs to display a view
+    /// controller.
+    /// - Parameter viewControllerToPresent: The view controller to be presented.
+    /// - Parameter flag: Decides whether the view controller presentation should be animated.
+    /// - Parameter completion: The block to execute after the presentation finishes.
+    /// This block has no return value and takes no parameters.
+    @objc(presentViewController:animated:completion:)
+    func present(_ viewControllerToPresent: NSViewController,
+                 animated flag: Bool,
+                 completion: (() -> Void)?)
+
+    /// If implemented, this method will be invoked when Firebase Auth needs to display a view
+    /// controller.
+    /// - Parameter flag: Decides whether removing the view controller should be animated or not.
+    /// - Parameter completion: The block to execute after the presentation finishes.
+    /// This block has no return value and takes no parameters.
+    @objc(dismissViewControllerAnimated:completion:)
+    func dismiss(animated flag: Bool, completion: (() -> Void)?)
+  }
+
+  // Extension to support default argument variations.
+  extension AuthUIDelegate {
+    func present(_ viewControllerToPresent: NSViewController,
+                 animated flag: Bool,
+                 completion: (() -> Void)? = nil) {
+      return present(viewControllerToPresent, animated: flag, completion: nil)
+    }
+
+    func dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
+      return dismiss(animated: flag, completion: nil)
+    }
+  }
 #endif
